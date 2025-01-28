@@ -1,0 +1,10 @@
+[
+    {
+        "targets": ["${TARGET_URI}"],
+        "labels": {
+            "deployment": "${DEPLOYMENT}",
+            "environment": "${ENVIRONMENT}",
+            "service": "${SERVICE}"
+        }
+    }
+]
