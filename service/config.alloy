@@ -1,0 +1,92 @@
+// -------------------------
+// Receiver
+// -------------------------
+otelcol.receiver.otlp "default" {
+    grpc {
+        endpoint = "0.0.0.0:4317"
+    }
+
+    output {
+        metrics = [otelcol.processor.batch.default.input]
+        logs    = [otelcol.processor.batch.default.input]
+        traces  = [otelcol.connector.servicegraph.default.input, otelcol.processor.batch.default.input] 
+    }
+}
+// -------------------------
+// Service Graph Processor
+// -------------------------
+otelcol.connector.servicegraph "default" {
+    dimensions = ["service.namespace", "service.name"]
+    
+    output {
+        metrics = [otelcol.processor.batch.service_graph.input]
+  }
+}
+// -------------------------
+// Batching
+// -------------------------
+otelcol.processor.batch "default" {
+    output {
+        metrics = [otelcol.exporter.prometheus.default.input]
+        logs    = [otelcol.exporter.loki.default.input]
+        traces  = [otelcol.exporter.otlp.default.input]
+    }
+}
+
+// Separate batch processor for service graph metrics
+otelcol.processor.batch "service_graph" {
+    output {
+        metrics = [otelcol.exporter.prometheus.default.input]
+    }
+}
+// -------------------------
+// Traces
+// -------------------------
+// OpenTelemetry collector to export traces in Tempo format
+// and Tempo traces exporter to Grafana Cloud 
+otelcol.exporter.otlp "default" {
+    client {
+        endpoint = sys.env("TEMPO_ENDPOINT")
+        auth = otelcol.auth.basic.grafana_cloud.handler
+    }
+}
+// Tempo authentication handler
+otelcol.auth.basic "grafana_cloud" {
+    username = sys.env("TEMPO_USERNAME")
+    password = sys.env("TEMPO_PASSWORD")
+}
+// -------------------------
+// Metrics
+// -------------------------
+// OpenTelemetry collector to export metrics in prometheus format 
+otelcol.exporter.prometheus "default" {
+    forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+// Prometheus metrics exporter to Grafana Cloud
+prometheus.remote_write "grafana_cloud" {
+    endpoint {
+        url = sys.env("PROM_ENDPOINT")
+        basic_auth {
+            username = sys.env("PROM_USERNAME")
+            password = sys.env("PROM_PASSWORD")
+        }
+    }
+}
+// -------------------------
+// Logs
+// -------------------------
+// OpenTelemetry collector to export logs in loki format 
+otelcol.exporter.loki "default" {
+    forward_to = [loki.write.grafana_cloud.receiver]
+}
+// Loki logs exporter to Grafana Cloud
+loki.write "grafana_cloud" {
+    endpoint {
+        url = sys.env("LOKI_ENDPOINT")
+
+        basic_auth {
+            username = sys.env("LOKI_USERNAME")
+            password = sys.env("LOKI_PASSWORD")
+        }
+    }
+}
