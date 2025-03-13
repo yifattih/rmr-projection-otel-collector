@@ -46,7 +46,7 @@ otelcol.processor.batch "service_graph" {
 // and Tempo traces exporter to Grafana Cloud 
 otelcol.exporter.otlp "default" {
     client {
-        endpoint = sys.env("TEMPO_ENDPOINT")
+        endpoint = sys.env("TEMPO_URL")
         auth = otelcol.auth.basic.grafana_cloud.handler
     }
 }
@@ -65,10 +65,10 @@ otelcol.exporter.prometheus "default" {
 // Prometheus metrics exporter to Grafana Cloud
 prometheus.remote_write "grafana_cloud" {
     endpoint {
-        url = sys.env("PROM_ENDPOINT")
+        url = sys.env("PROMETHEUS_URL")
         basic_auth {
-            username = sys.env("PROM_USERNAME")
-            password = sys.env("PROM_PASSWORD")
+            username = sys.env("PROMETHEUS_USERNAME")
+            password = sys.env("PROMETHEUS_PASSWORD")
         }
     }
 }
@@ -82,7 +82,7 @@ otelcol.exporter.loki "default" {
 // Loki logs exporter to Grafana Cloud
 loki.write "grafana_cloud" {
     endpoint {
-        url = sys.env("LOKI_ENDPOINT")
+        url = sys.env("LOKI_URL")
 
         basic_auth {
             username = sys.env("LOKI_USERNAME")
