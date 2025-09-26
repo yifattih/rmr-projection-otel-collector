@@ -1,12 +1,6 @@
 name: Semantic Release
-
+run-name: "Semantic Release - Branch: ${{ github.ref_name }} (Commit: ${{ github.sha}} )"
 on:
-    pull_request:
-        types:
-            - closed
-        branches:
-            - main
-            - alpha
     push:
         branches:
             - main
@@ -23,7 +17,7 @@ jobs:
         outputs:
             IMAGE_TAG: ${{ steps.semantic.outputs.new_release_version }}
         steps:
-            - name: Checkout
+            - name: Checkout Source Code
               uses: actions/checkout@v4
             - uses: actions/setup-node@v4.1.0
               env:
@@ -31,7 +25,7 @@ jobs:
               with:
                 node-version: "lts/*"
 
-            - name: Analyze commits and make release
+            - name: Analyze Commits & Make Release
               uses: cycjimmy/semantic-release-action@v4.2.0
               id: semantic
               with:
