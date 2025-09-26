@@ -1,0 +1,62 @@
+name: Build and Push Image to GAR
+run-name: "Build & Push Image ${{ github.ref_name == 'main' && '[PRODUCTION]' || github.ref_name == 'alpha' && '[ALPHA]' }} – Branch: ${{ github.ref_name }} (Commit: ${{ github.sha}} )"
+on:
+    workflow_dispatch:
+
+env:
+    SERVICE_NAME_PREFIX: rmr-projection-
+
+jobs:
+    extract-service-name:
+        name: Extract Service Name
+        runs-on: ubuntu-latest
+        outputs:
+            SERVICE_NAME: ${{ steps.extract.outputs.SERVICE_NAME }}
+        steps:
+            - name: Extract Service Name
+              id: extract
+              run: |
+                  repository_name=${{ github.event.repository.name }}
+                  SERVICE_NAME=${repository_name#*${{ env.SERVICE_NAME_PREFIX }}}
+                  echo "SERVICE_NAME=${SERVICE_NAME}" >> ${GITHUB_OUTPUT}
+                  echo "Service name extracted '${SERVICE_NAME}' from repository name '${repository_name}'"
+
+    push-gar:
+        name: Build and Push to Google Artifact Registry
+        runs-on: ubuntu-latest
+        if: github.ref_name == 'main' || github.ref_name == 'alpha'
+        needs:
+            - extract-service-name
+        steps:
+            - name: Checkout Source Code
+              uses: actions/checkout@v5
+
+            - name: Authenticate to GCP
+              uses: google-github-actions/auth@v2.1.7
+              with:
+                  credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+            - name: Set up Cloud SDK
+              uses: 'google-github-actions/setup-gcloud@v2.1.4'
+
+            - name: Configure gcloud as Docker Credential Helper
+              run: |
+                  gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3.10.0
+
+            - name: Get latest release tag
+              uses: dragonish/get-latest-release-tag@v1
+              id: latest
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  repository: ${{ github.repository }}
+                  pre-release: true
+
+            - name: Build and Push
+              uses: docker/build-push-action@v6.15.0
+              with:
+                  context: .
+                  push: true
+                  tags: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ github.ref_name == 'main' && 'production' || github.ref_name == 'alpha' && 'alpha' }}/${{ needs.extract-service-name.outputs.SERVICE_NAME }}:${{ steps.latest.outputs.tag }}
